@@ -50,7 +50,58 @@ function updateCollidingEntities() {
     .filter(([key, collisions]) => collisions.length > 0)
 
   if(collisions.length > 0) {
-    // console.log(collisions)
+    const uniqueCollisionsMap = collisions.reduce((acc, [colliderA, secondaries]) => {
+      secondaries.forEach((colliderB) => {
+        acc.push([colliderA, colliderB])
+      })
+      return acc;
+    }, [])
+    .map(collision => collision.sort().join('-')) // this character could be a problem later
+    .reduce((acc, collisionStr) => {
+      acc[collisionStr] = collisionStr
+      return acc
+    }, {})
+
+    const uniqueCollisions = Object.values(uniqueCollisionsMap).map((str) => {
+      const [colliderA, colliderB] = str.split('-')
+      return {
+        colliderA,
+        colliderB
+      }
+    })
+
+    uniqueCollisions
+      .map(({colliderA, colliderB}) => ({
+        colliderA: gameObjects[colliderA],
+        colliderB: gameObjects[colliderB]
+      }))
+      .forEach(({colliderA, colliderB}) => {
+        colliderA.collide(colliderB)
+        colliderB.collide(colliderA)
+
+
+        // well this is getting closer, but isn't perfect
+        // - sometimes shapes stick to each other
+        // - when the circles collide they do not bounce in the extected direction
+        const xVels = getVelocities(colliderA.vx, colliderA.mass, colliderB.vx, colliderB.mass)
+        const yVels = getVelocities(colliderA.vy, colliderA.mass, colliderB.vy, colliderB.mass)
+
+        colliderA.vx = xVels.v1
+        colliderA.vy = yVels.v1
+
+        colliderB.vx = xVels.v2
+        colliderB.vy = yVels.v2
+
+      })
+  }
+}
+
+function getVelocities(v1, m1, v2, m2) {
+  const totalMass = m1 + m2;
+  const massDifference = m1 - m2;
+  return {
+    v1: ((massDifference / totalMass) * v1) + (((2 * m2) / totalMass) * v2),
+    v2: (((2 * m1) / totalMass) * v1) - ((massDifference / totalMass) * v2)
   }
 }
 
@@ -92,7 +143,8 @@ class GameObject {
       vy = 0,
       acceleration = 1,
       drag = 0.9,
-      size = defaultObjectSize,
+      size = defaultObjectSize, // this is the radius
+      density = 1,
       color = "#ff00ff",
     } = options
 
@@ -103,6 +155,9 @@ class GameObject {
     this.acceleration = acceleration
     this.drag = drag
     this.size = size
+    this.density = density
+    this.volume = PI * Math.pow(this.size, 2)
+    this.mass = this.density * this.volume
     this.color = color
   }
 
@@ -122,15 +177,14 @@ class GameObject {
   }
 
   hasCollision(b) {
-    const xDiff = b.x - this.x
-    const yDiff = b.y - this.y
+    const combinedRadius = this.size + b.size;
+    const dist = distance(this.x, this.y, b.x, b.y)
 
-    const xSqr = Math.pow(xDiff,2)
-    const ySqr = Math.pow(yDiff,2)
-    const sqrDistance = xSqr + ySqr
-    const collisionDistance = Math.pow(this.size, 2) + Math.pow(b.size, 2)
+    return dist < combinedRadius
+  }
 
-    return sqrDistance < collisionDistance
+  collide(b) {
+
   }
 
   getVector() {
