@@ -1,3 +1,5 @@
+// https://sinepost.wordpress.com/2012/08/19/bouncing-off-the-walls/
+// https://sinepost.wordpress.com/2012/09/05/making-your-balls-bounce/
 let canvas
 let context
 
